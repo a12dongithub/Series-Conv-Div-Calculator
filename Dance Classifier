@@ -1,0 +1,412 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "name": "Untitled5.ipynb",
+      "provenance": [],
+      "collapsed_sections": [],
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "accelerator": "GPU"
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/a12dongithub/Series-Conv-Div-Calculator/blob/master/Dance%20Classifier\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "-EDY7JDWWWqP",
+        "colab_type": "text"
+      },
+      "source": [
+        ""
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "P2PqQi8ZbSDh",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "import pandas as pd\n",
+        "import numpy as np\n",
+        "import matplotlib.pyplot as plt\n",
+        "import cv2\n",
+        "import os\n",
+        "import tensorflow as tf\n",
+        "from tensorflow.keras import datasets, layers, models\n",
+        "from tensorflow import keras\n",
+        "from tensorflow.keras import layers\n",
+        "from keras.utils import to_categorical\n",
+        "from tensorflow.python.keras.models import Sequential\n",
+        "from tensorflow.python.keras.layers import Dense, Flatten, GlobalAveragePooling2D, Activation\n",
+        "import keras\n",
+        "from keras.optimizers import SGD\n",
+        "from sklearn.model_selection import train_test_split\n",
+        "from keras.preprocessing.image import ImageDataGenerator\n",
+        "from keras import backend as K"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "nChTRLzt0LJz",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 34
+        },
+        "outputId": "4147c977-c11e-43d0-ee94-dc81c2166260"
+      },
+      "source": [
+        "from google.colab import drive\n",
+        "drive.mount('/content/drive')"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "Drive already mounted at /content/drive; to attempt to forcibly remount, call drive.mount(\"/content/drive\", force_remount=True).\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "s8y6KUORcoYo",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "def Imresize(name):\n",
+        "  image = cv2.imread(\"/content/drive/My Drive/0664343c9a8f11ea.zip (Unzipped Files) (1)/dataset/train/\" + name)\n",
+        "  image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)\n",
+        "  \n",
+        "  return cv2.resize(image,(224,224))"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "QFxVkluFrUcI",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "def Imresize1(name):\n",
+        "  image = cv2.imread(\"/content/drive/My Drive/0664343c9a8f11ea.zip (Unzipped Files) (1)/dataset/test/\" + name)\n",
+        "  image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)\n",
+        "  \n",
+        "  return cv2.resize(image,(224,224))"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "K4FJYO8cWYMz",
+        "colab_type": "text"
+      },
+      "source": [
+        "CALCULATING THE SCORE"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "54aSjkG6xWPP",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "def get_f1(y_true, y_pred): #taken from old keras source code\n",
+        "    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))\n",
+        "    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))\n",
+        "    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))\n",
+        "    precision = true_positives / (predicted_positives + K.epsilon())\n",
+        "    recall = true_positives / (possible_positives + K.epsilon())\n",
+        "    f1_val = 2*(precision*recall)/(precision+recall+K.epsilon())\n",
+        "    return f1_val"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "vEHbHNVrWapK",
+        "colab_type": "text"
+      },
+      "source": [
+        "LOADING THE DATA"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "sqy2TVtocELZ",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "dictionary = { \n",
+        "    'manipuri' :0,\n",
+        "    'bharatanatyam':1,\n",
+        "    'odissi' :2,\n",
+        "    'kathakali' : 3,\n",
+        "    'kathak' :4,\n",
+        "    'sattriya':5,\n",
+        "    'kuchipudi':6,\n",
+        "    'mohiniyattam':7\n",
+        "}\n",
+        "trainDir = \"/content/drive/My Drive/0664343c9a8f11ea.zip (Unzipped Files) (1)/dataset/train/\"\n",
+        "def get_data(trainDir, traincsv):\n",
+        "  \n",
+        "  dictionary = { \n",
+        "    'manipuri' :0,\n",
+        "    'bharatanatyam':1,\n",
+        "    'odissi' :2,\n",
+        "    'kathakali' : 3,\n",
+        "    'kathak' :4,\n",
+        "    'sattriya':5,\n",
+        "    'kuchipudi':6,\n",
+        "    'mohiniyattam':7\n",
+        "     }\n",
+        "  train = []\n",
+        "  train_y = []\n",
+        "  for filename in os.listdir(trainDir):\n",
+        "    \n",
+        "    train.append(Imresize(filename))\n",
+        "    s = traincsv[traincsv[\"Image\"] == filename]['target']\n",
+        "    train_y.append(dictionary[s.values[0]])\n",
+        "    oneHotVector = to_categorical(train_y,8)\n",
+        "  train = np.asarray(train)\n",
+        "  oneHotVector = np.asarray(oneHotVector)        \n",
+        "  return train, oneHotVector\n",
+        "\n",
+        "  "
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "4ONtAaH8h0l5",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "X,y = get_data(trainDir, pd.read_csv(\"/content/drive/My Drive/0664343c9a8f11ea.zip (Unzipped Files) (1)/dataset/train.csv\"))\n"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "XJv4wRJRQIba",
+        "colab_type": "text"
+      },
+      "source": [
+        "DATA AUGMENTATION"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "S6lBKfh0QQP-",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "a,b,c,d = train_test_split(X, y, test_size=0.1, random_state=42)\n",
+        "aug = ImageDataGenerator(\n",
+        "\t\trotation_range=20,\n",
+        "\t\tzoom_range=0.15,\n",
+        "\t\twidth_shift_range=0.2,\n",
+        "\t\theight_shift_range=0.2,\n",
+        "\t\tshear_range=0.15,\n",
+        "\t\thorizontal_flip=True,\n",
+        "\t\tfill_mode=\"nearest\")\n",
+        "aug.fit(a,augment = True)\n"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "sYBCvaimWl1X",
+        "colab_type": "text"
+      },
+      "source": [
+        "PREDICTION FUNCTION"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "lnvI_txQbjKh",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "  def predict(X,y,pmodel,opt,batch_size,epochs,loss):\n",
+        "  \n",
+        "    final_model = models.Sequential([pmodel,layers.Flatten(),layers.Dropout(0.3),layers.Dense(8,activation = 'softmax')])\n",
+        "    final_model.summary()\n",
+        "    final_model.compile(optimizer=opt,\n",
+        "                loss=loss,\n",
+        "                metrics=[get_f1])\n",
+        "    \n",
+        "\n",
+        "    final_model.fit_generator(aug.flow(a,c,batch_size= batch_size) ,steps_per_epoch=5 ,epochs=epochs,validation_data=(b,d))\n",
+        "    return final_model"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "wdT6oDcxWq5E",
+        "colab_type": "text"
+      },
+      "source": [
+        "TRASNFER LEARNING USING VGG MODEL"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "toQE4-czjKkl",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "pmodel = tf.keras.applications.VGG16(\n",
+        "    include_top=False, weights='imagenet',  input_shape=(224,224,3),\n",
+        "    \n",
+        ")\n",
+        "pmodel.trainable = False\n"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "nxFQqoHgWuRo",
+        "colab_type": "text"
+      },
+      "source": [
+        "TRAINING THE MODEL"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "zCQlebyvmowG",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 231
+        },
+        "outputId": "228c33af-a13b-444a-aae8-67c991c4ac3b"
+      },
+      "source": [
+        "lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(\n",
+        "    initial_learning_rate=0.1,\n",
+        "    decay_steps=100000,\n",
+        "    decay_rate=0.7)\n",
+        "optimizer = tf.keras.optimizers.SGD(learning_rate=lr_schedule)\n",
+        "loss= 'categorical_crossentropy'\n",
+        "asdd = predict(X,y,pmodel,optimizer,50,46,loss)"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "error",
+          "ename": "NameError",
+          "evalue": "ignored",
+          "traceback": [
+            "\u001b[0;31m---------------------------------------------------------------------------\u001b[0m",
+            "\u001b[0;31mNameError\u001b[0m                                 Traceback (most recent call last)",
+            "\u001b[0;32m<ipython-input-1-32a7a47668eb>\u001b[0m in \u001b[0;36m<module>\u001b[0;34m()\u001b[0m\n\u001b[0;32m----> 1\u001b[0;31m lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(\n\u001b[0m\u001b[1;32m      2\u001b[0m     \u001b[0minitial_learning_rate\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;36m0.1\u001b[0m\u001b[0;34m,\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m      3\u001b[0m     \u001b[0mdecay_steps\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;36m100000\u001b[0m\u001b[0;34m,\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m      4\u001b[0m     decay_rate=0.7)\n\u001b[1;32m      5\u001b[0m \u001b[0moptimizer\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mtf\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mkeras\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0moptimizers\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mSGD\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mlearning_rate\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mlr_schedule\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+            "\u001b[0;31mNameError\u001b[0m: name 'tf' is not defined"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "GzBv0UsFnQoe",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "testDir = \"/content/drive/My Drive/0664343c9a8f11ea.zip (Unzipped Files) (1)/dataset/test\"\n",
+        "df = pd.read_csv(\"/content/drive/My Drive/0664343c9a8f11ea.zip (Unzipped Files) (1)/dataset/test.csv\")\n",
+        "test = []\n",
+        "new_dict= {value:key for key,value in dictionary.items()}\n",
+        "df.head()\n",
+        "for filename in df[\"Image\"]:  \n",
+        "  img = Imresize1(filename)\n",
+        "  img  = np.expand_dims(img, axis=0)\n",
+        "  test.append(new_dict[np.argmax(asdd.predict(img))])\n",
+        "df['target'] = test"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "d0IcmKjgW1kS",
+        "colab_type": "text"
+      },
+      "source": [
+        "SAVING THE MODEL"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "VxsIQdd43yFn",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "df.head()\n",
+        "df.to_csv('predicted8.csv', index = False)"
+      ],
+      "execution_count": null,
+      "outputs": []
+    }
+  ]
+}
